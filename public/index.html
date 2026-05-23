@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>鱼塘社 - 视频搜索聚合</title>
+  <style>
+    :root {
+      --primary: #00A1DF;
+      --primary-dark: #0089C0;
+      --bg-dark: #0d0d0d;
+      --bg-card: #1a1a1a;
+      --bg-hover: #252525;
+      --text-primary: #ffffff;
+      --text-secondary: #999999;
+      --border-color: #333333;
+      --bg-image: url(https://acg.suyanw.cn/beauty);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      position: relative;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-primary);
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* 背景美图 + 羽化效果 */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: -2;
+      background: var(--bg-image) center/cover no-repeat;
+      opacity: 0.8;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background: radial-gradient(ellipse at center, transparent 15%, rgba(0,0,0,0.7) 100%);
+      pointer-events: none;
+    }
+
+    .app { flex: 1; display: flex; flex-direction: column; }
+
+    a { color: inherit; text-decoration: none; }
+    button { cursor: pointer; border: none; background: none; font-family: inherit; }
+    input { font-family: inherit; border: none; outline: none; }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+
+    /* Search Section */
+    .search-section {
+      padding: 60px 0 40px;
+      text-align: center;
+    }
+
+    .search-box {
+      display: flex;
+      max-width: 600px;
+      margin: 0 auto 30px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 50px;
+      overflow: hidden;
+      border: 2px solid rgba(128, 128, 128, 0.4);
+      transition: border-color 0.2s;
+    }
+
+    .search-box:focus-within { border-color: rgba(255, 255, 255, 0.6); }
+
+    #searchInput {
+      flex: 1;
+      padding: 14px 18px;
+      font-size: 16px;
+      background: transparent;
+      color: var(--text-primary);
+    }
+
+    #searchInput::placeholder { color: var(--text-secondary); }
+
+    .search-btn {
+      display: none;
+      padding: 14px 32px;
+      background: rgba(255, 255, 255, 0.8);
+      color: var(--bg-dark);
+      font-size: 15px;
+      font-weight: 500;
+      border-radius: 50px;
+      transition: background 0.2s;
+    }
+
+    #searchInput:not(:placeholder-shown) ~ .search-btn {
+      display: block;
+    }
+
+    .search-btn:hover { background: rgba(255, 255, 255, 1); }
+
+    /* Loading */
+    .loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 0;
+      color: var(--text-secondary);
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--border-color);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 12px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Result Info */
+    .result-info {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 0;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    .result-clear {
+      padding: 4px 14px;
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .result-clear:hover {
+      border-color: #ff4444;
+      color: #ff4444;
+    }
+
+    /* Video Grid */
+    .video-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 20px;
+      padding: 20px 0;
+    }
+
+    .video-card {
+      background: var(--bg-card);
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .video-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .video-cover {
+      position: relative;
+      aspect-ratio: 3/4;
+      background: var(--bg-hover);
+      overflow: hidden;
+    }
+
+    .video-cover img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .video-cover .placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      font-size: 48px;
+      color: var(--text-muted);
+    }
+
+    .video-remark {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      padding: 2px 8px;
+      background: rgba(0, 0, 0, 0.8);
+      border-radius: 4px;
+      font-size: 12px;
+      color: #fff;
+    }
+
+    .video-source {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      padding: 2px 8px;
+      background: var(--primary);
+      border-radius: 4px;
+      font-size: 11px;
+      color: white;
+    }
+
+    .video-info { padding: 12px; }
+
+    .video-title {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-primary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-bottom: 4px;
+    }
+
+    .video-meta {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 60px 0;
+      color: var(--text-secondary);
+    }
+
+    .empty-icon { font-size: 64px; margin-bottom: 16px; }
+    .empty-hint { font-size: 14px; margin-top: 8px; }
+
+    /* Pagination */
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 30px 0;
+    }
+
+    .page-btn {
+      padding: 10px 24px;
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      border-radius: 6px;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+
+    .page-btn:hover:not(:disabled) {
+      background: var(--primary);
+      color: white;
+    }
+
+    .page-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .page-info { color: var(--text-secondary); font-size: 14px; }
+
+    /* Player Modal - 上下布局 */
+    .player-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(13, 13, 13, 0.5);
+      z-index: 1000;
+      overflow-y: auto;
+    }
+
+    .player-modal.active { display: block; }
+
+    .player-container {
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      min-height: 100%;
+      background: var(--bg-dark);
+    }
+
+    /* 顶部标题栏 */
+    .player-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 40px;
+      padding: 0 20px;
+      background: var(--bg-card);
+      flex-shrink: 0;
+    }
+
+    .player-title {
+      font-size: 14px;
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: calc(100% - 48px);
+      color: var(--text-primary);
+    }
+
+    .player-close {
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      color: white;
+      background: #555;
+      border-radius: 50%;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .player-close:hover {
+      background: #ff4444;
+    }
+
+    /* 播放区域 */
+    .player-frame {
+      width: 100%;
+      height: 510px;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .player-frame iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    /* 下方控制区（资源、选集） */
+    .player-left { display: none; } /* 旧结构兼容，隐藏 */
+
+    .player-right {
+      flex: 1;
+      background: var(--bg-card);
+      overflow-y: visible;
+    }
+
+    .detail-body {
+      padding: 16px 20px 24px;
+    }
+
+    /* 资源/选集标签通用 */
+    .source-tab {
+      padding: 6px 16px;
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+      border-radius: 6px;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+
+    .source-tab:hover, .source-tab.active {
+      background: var(--primary);
+      color: white;
+    }
+
+    .episode-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .episode-item {
+      padding: 6px 16px;
+      background: var(--bg-hover);
+      border-radius: 6px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .episode-item:hover {
+      background: var(--primary);
+      color: white;
+    }
+
+    .episode-item.playing {
+      background: var(--primary);
+      color: white;
+      font-weight: bold;
+    }
+
+    /* 线路选择区 */
+    .parser-section {
+      margin-bottom: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .parser-section .parser-tabs {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    .parser-section .parser-tabs button {
+      padding: 6px 16px;
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .parser-section .parser-tabs button:hover,
+    .parser-section .parser-tabs button.active {
+      background: var(--primary);
+      color: white;
+    }
+
+    .parser-section .source-tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* 选集区 */
+    .episode-section {
+      margin-bottom: 12px;
+    }
+
+    .episode-label {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 10px;
+    }
+
+    /* 详情信息区（折叠在底部） */
+    .detail-name { display: none; } /* 标题已在顶部 header 显示 */
+
+    .detail-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .detail-tag {
+      padding: 3px 10px;
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    .detail-tag.accent {
+      background: var(--primary);
+      color: white;
+    }
+
+    .detail-row {
+      display: flex;
+      margin-bottom: 4px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .detail-label {
+      color: var(--text-secondary);
+      flex-shrink: 0;
+      min-width: 50px;
+      margin-right: 4px;
+    }
+
+    .detail-value {
+      color: var(--text-primary);
+      word-break: break-all;
+    }
+
+    .detail-label-spacer {
+      margin-left: 20px;
+    }
+
+    .detail-desc {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .detail-desc-title {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .detail-desc-text {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.8;
+    }
+
+    .detail-desc-text.collapsed {
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .desc-toggle {
+      display: inline-block;
+      margin-top: 6px;
+      padding: 2px 0;
+      font-size: 12px;
+      color: var(--primary);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .desc-toggle:hover { text-decoration: underline; }
+
+    /* 主演折叠 */
+    .actor-text.collapsed {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .actor-toggle {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 0;
+      font-size: 12px;
+      color: var(--primary);
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    .actor-toggle:hover { text-decoration: underline; }
+
+    /* Footer */
+    .footer {
+      margin-top: auto;
+      padding: 30px 0;
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+
+    .footer p { margin-bottom: 8px; }
+    .copyright { font-size: 12px; }
+
+    /* Floating Nav */
+    .float-nav {
+      position: fixed;
+      right: 20px;
+      bottom: 80px;
+      width: 44px;
+      height: 44px;
+      background: rgba(128, 128, 128, 0.8);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 999;
+      transition: all 0.2s;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    }
+
+    .float-nav:hover {
+      background: rgba(128, 128, 128, 1);
+      transform: scale(1.1);
+    }
+
+    .float-nav span {
+      color: white;
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .header-content { flex-wrap: wrap; gap: 12px; }
+      .site-title { font-size: 28px; }
+      .video-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
+      .player-container { max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- Search Section -->
+    <section class="search-section">
+      <div class="container">
+        <div class="search-box">
+          <input type="text" id="searchInput" placeholder="输入电影、电视剧、动漫名称..." autocomplete="off">
+          <button class="search-btn" onclick="search()">搜索</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Loading -->
+    <div class="loading" id="loading" style="display: none;">
+      <div class="spinner"></div>
+      <span>加载中...</span>
+    </div>
+
+    <!-- Result Info -->
+    <div class="result-info container" id="resultInfo" style="display: none;">
+      <span id="resultCount"></span>
+      <button class="result-clear" onclick="clearResults()">清除结果</button>
+    </div>
+
+    <!-- Video Grid -->
+    <main class="container">
+      <div class="video-grid" id="videoGrid"></div>
+      <div class="empty-state" id="emptyState" style="display: none;">
+        <div class="empty-icon">🔍</div>
+        <p>没有找到相关视频</p>
+        <p class="empty-hint">换个关键词试试吧</p>
+      </div>
+    </main>
+
+    <!-- Pagination -->
+    <div class="pagination container" id="pagination" style="display: none;">
+      <button class="page-btn" id="prevPage" onclick="prevPage()">上一页</button>
+      <span class="page-info" id="pageInfo"></span>
+      <button class="page-btn" id="nextPage" onclick="nextPage()">下一页</button>
+    </div>
+
+    <!-- Player Modal - 上下布局 -->
+    <div class="player-modal" id="playerModal">
+      <div class="player-container">
+        <!-- 顶部标题栏 -->
+        <div class="player-header">
+          <h3 class="player-title" id="playerTitle"></h3>
+          <button class="player-close" onclick="closePlayer()">✕</button>
+        </div>
+        <!-- 播放区域（16:9） -->
+        <div class="player-frame" id="playerFrame">
+          <span id="playerPlaceholder" style="color:var(--text-secondary);font-size:14px;">选择剧集开始播放</span>
+          <iframe id="videoIframe" allowfullscreen style="display:none;"></iframe>
+        </div>
+        <!-- 下方：资源、选集、详情 -->
+        <div class="player-right" id="playerRight">
+          <div class="detail-body" id="detailBody"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="container">
+        <p>© 2024-2026 鱼塘社 - 视频搜索聚合</p>
+        <p class="copyright">本站不存储任何资源，所有资源均为互联网公开内容</p>
+        <p>推荐使用 Chrome 浏览器获得最佳体验</p>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Floating Nav -->
+  <a class="float-nav" href="https://www.yutangshe.com/" target="_blank" title="首页导航">
+    <span>🏠</span>
+  </a>
+
+  <script>
+    // API 配置
+    const API_CONFIG = {
+      hh: 'https://hhzyapi.com/api.php/provide/vod/from/hhm3u8/at/json',
+      hn: 'https://www.hongniuzy2.com/api.php/provide/vod/from/hnm3u8/at/json/',
+      hq: 'https://www.seacms.org/api.php/provide/vod/',
+      my: 'https://api.maoyanapi.top/api.php/provide/vod'
+    };
+
+    // 资源站名称映射
+    const SOURCE_NAMES = {
+      hh: '豪华资源',
+      hn: '红牛资源',
+      hq: '花旗资源【有官解】',
+      my: '猫眼资源'
+    };
+
+    // 多解析接口配置
+    const PARSERS = [
+      { name: '线路一(官解线路)', url: 'https://json.fongmi.cc/web?url=' },
+      { name: '线路二', url: 'https://jx.aidouer.net/?url=' },
+      { name: '线路三', url: 'https://super.playr.top/?url=' }
+    ];
+    let currentParser = 0;
+
+    // 状态管理
+    let state = {
+      keyword: '',
+      page: 1,
+      itemsPerPage: 6,
+      currentVideo: null,
+      videos: []
+    };
+
+    // 初始化
+    document.addEventListener('DOMContentLoaded', () => {
+      // 搜索回车事件
+      document.getElementById('searchInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') search();
+      });
+
+      // 点击空白区域切换背景
+      document.addEventListener('click', (e) => {
+        const tag = e.target.tagName;
+        if (['BUTTON', 'A', 'INPUT', 'TEXTAREA', 'SELECT', 'IFRAME'].includes(tag)) return;
+        if (e.target.closest('.video-card, .episode-item, .source-btn, .source-tab, .player-modal')) return;
+        document.documentElement.style.setProperty('--bg-image', `url(https://acg.suyanw.cn/beauty?t=${Date.now()})`);
+      });
+    });
+
+    // 返回首页
+    function goHome() {
+      state.keyword = '';
+      state.page = 1;
+      document.getElementById('searchInput').value = '';
+      document.getElementById('videoGrid').innerHTML = '';
+      document.getElementById('resultInfo').style.display = 'none';
+      document.getElementById('pagination').style.display = 'none';
+    }
+
+    // 清除搜索结果
+    function clearResults() {
+      state.videos = [];
+      state.keyword = '';
+      state.page = 1;
+      document.getElementById('searchInput').value = '';
+      document.getElementById('videoGrid').innerHTML = '';
+      document.getElementById('resultInfo').style.display = 'none';
+      document.getElementById('emptyState').style.display = 'none';
+      document.getElementById('pagination').style.display = 'none';
+    }
+
+    // 搜索
+    async function search() {
+      const keyword = document.getElementById('searchInput').value.trim();
+      if (!keyword) return;
+      
+      state.keyword = keyword;
+      state.page = 1;
+      await doSearch();
+    }
+
+    // 执行搜索
+    async function doSearch() {
+      showLoading(true);
+      
+      try {
+        const sources = Object.keys(API_CONFIG);
+        let allVideos = [];
+        
+        // 并行请求所有源（每个源只取第1页）
+        const results = await Promise.allSettled(
+          sources.map(source => {
+            const url = `${API_CONFIG[source]}?ac=detail&wd=${encodeURIComponent(state.keyword)}&page=1`;
+            return fetchAPI(url).then(data => ({ data, source }));
+          })
+        );
+
+        for (const result of results) {
+          if (result.status === 'fulfilled' && result.value.data && result.value.data.list) {
+            const videos = result.value.data.list.map(v => ({ ...v, _source: result.value.source }));
+            allVideos = [...allVideos, ...videos];
+          }
+        }
+        
+        // 按更新时间排序
+        allVideos.sort((a, b) => new Date(b.vod_time) - new Date(a.vod_time));
+        
+        state.videos = allVideos;
+        renderVideos();
+        
+      } catch (err) {
+        console.error('搜索失败:', err);
+        showError();
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    // 渲染视频列表
+    function renderVideos() {
+      const grid = document.getElementById('videoGrid');
+      const empty = document.getElementById('emptyState');
+      const resultInfo = document.getElementById('resultInfo');
+      const pagination = document.getElementById('pagination');
+      
+      if (state.videos.length === 0) {
+        grid.innerHTML = '';
+        empty.style.display = 'block';
+        resultInfo.style.display = 'none';
+        pagination.style.display = 'none';
+        return;
+      }
+      
+      empty.style.display = 'none';
+      resultInfo.style.display = 'block';
+      
+      const total = state.videos.length;
+      const totalPages = Math.ceil(total / state.itemsPerPage);
+      const start = (state.page - 1) * state.itemsPerPage;
+      const pageVideos = state.videos.slice(start, start + state.itemsPerPage);
+      
+      document.getElementById('resultCount').textContent = `共找到 ${total} 个结果，第 ${state.page}/${totalPages} 页`;
+      pagination.style.display = totalPages > 1 ? 'flex' : 'none';
+      updatePageInfo();
+      
+      grid.innerHTML = pageVideos.map(video => {
+        const sourceName = SOURCE_NAMES[video._source] || video._source || '';
+        const pic = video.vod_pic || '';
+        
+        return `
+          <div class="video-card" onclick="openPlayer(${video.vod_id}, '${video._source}')">
+            <div class="video-cover">
+              ${pic ? `<img src="${pic}" alt="${video.vod_name}" loading="lazy">` : '<div class="placeholder">📺</div>'}
+              <span class="video-source">${sourceName}</span>
+              ${video.vod_remarks ? `<span class="video-remark">${video.vod_remarks}</span>` : ''}
+            </div>
+            <div class="video-info">
+              <div class="video-title" title="${video.vod_name}">${video.vod_name}</div>
+              <div class="video-meta">${video.type_name || ''}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // 打开播放器
+    async function openPlayer(id, source) {
+      showLoading(true);
+      
+      try {
+        const data = await fetchAPI(`${API_CONFIG[source]}?ac=detail&ids=${id}`);
+        
+        if (data.list && data.list.length > 0) {
+          state.currentVideo = { ...data.list[0], _source: source };
+          showPlayerModal();
+        }
+      } catch (err) {
+        console.error('获取视频详情失败:', err);
+        alert('获取视频信息失败');
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    // 显示播放弹窗
+    function showPlayerModal() {
+      const video = state.currentVideo;
+      if (!video) return;
+      
+      document.getElementById('playerTitle').textContent = video.vod_name;
+      
+      // 重置播放区
+      document.getElementById('videoIframe').style.display = 'none';
+      document.getElementById('playerPlaceholder').style.display = '';
+      document.getElementById('videoIframe').src = '';
+      
+      // 渲染右侧详情（含线路、播放源、选集）
+      renderVideoDetail(video);
+      
+      // 显示弹窗
+      document.getElementById('playerModal').classList.add('active');
+      document.body.style.overflow = 'hidden';
+      
+      currentSource = 0;
+    }
+
+    // 渲染右侧详情
+    function renderVideoDetail(video) {
+      const body = document.getElementById('detailBody');
+      
+      // 线路选择
+      const parserHtml = PARSERS.map((p, i) => 
+        `<button class="${i === currentParser ? 'active' : ''}" onclick="switchParser(${i})">${p.name}</button>`
+      ).join('');
+      const parserSectionHtml = `
+        <div class="parser-section">
+          <div class="parser-tabs" id="parserTabs">
+            <span style="color:var(--text-secondary);font-size:12px;margin-right:4px;">线路</span>${parserHtml}
+          </div>
+          <div class="source-tabs" id="sourceTabs">
+            <span style="color:var(--text-secondary);font-size:12px;margin-right:4px;">来源</span>${buildSourceTabs(video)}
+          </div>
+        </div>`;
+      
+      // 选集
+      const urls = (video.vod_play_url || '').split('$$$');
+      const episodes = parseEpisodes(urls[0] || '');
+      const episodesHtml = episodes.map((ep, i) => 
+        `<div class="episode-item" data-url="${encodeURIComponent(ep.url)}" data-name="${ep.name}" onclick="playEpisode(this)">${ep.name}</div>`
+      ).join('');
+      const episodeSectionHtml = episodes.length ? `
+        <div class="episode-section" id="episodeSection">
+          <div class="episode-label">选集</div>
+          <div class="episode-list" id="episodeList">${episodesHtml}</div>
+        </div>` : '<div class="episode-section" id="episodeSection" style="display:none;"><div class="episode-list" id="episodeList"></div></div>';
+      
+      // 来源标签
+      const sourceName = SOURCE_NAMES[video._source] || video._source || '';
+      const remarkName = video.vod_remarks || '';
+      const metaHtml = [
+        sourceName ? `<span class="detail-tag accent">${sourceName}</span>` : '',
+        remarkName ? `<span class="detail-tag accent">${remarkName}</span>` : '',
+        video.type_name ? `<span class="detail-tag">${video.type_name}</span>` : '',
+        video.vod_class ? `<span class="detail-tag">${video.vod_class}</span>` : '',
+      ].filter(Boolean).join('');
+      
+      // 详情行 - 合并同行
+      const rowParts = [];
+      if (video.vod_director) rowParts.push(`<span class="detail-label">导演</span><span class="detail-value">${video.vod_director}</span>`);
+      if (video.vod_year) rowParts.push(`<span class="detail-label detail-label-spacer">年份</span><span class="detail-value">${video.vod_year}</span>`);
+      const rowsHtml = rowParts.length ? `<div class="detail-row">${rowParts.join('')}</div>` : '';
+      
+      const rowParts2 = [];
+      if (video.vod_area) rowParts2.push(`<span class="detail-label">地区</span><span class="detail-value">${video.vod_area}</span>`);
+      if (video.vod_lang) rowParts2.push(`<span class="detail-label detail-label-spacer">语言</span><span class="detail-value">${video.vod_lang}</span>`);
+      const rowsHtml2 = rowParts2.length ? `<div class="detail-row">${rowParts2.join('')}</div>` : '';
+      
+      // 主演单独处理，支持折叠
+      const actor = video.vod_actor;
+      let actorHtml = '';
+      if (actor) {
+        actorHtml = `<div class="detail-row"><span class="detail-label">主演</span><span class="detail-value"><span class="actor-text collapsed">${actor}</span><span class="actor-toggle" onclick="toggleActor(this)">展开</span></span></div>`;
+      }
+      
+      const desc = video.vod_content || '';
+      const descHtml = desc ? 
+        `<div class="detail-desc">
+          <div class="detail-desc-title">简介</div>
+          <div class="detail-desc-text collapsed">${desc.replace(/<[^>]+>/g, '')}</div>
+          <span class="desc-toggle" onclick="toggleDesc(this)">展开</span>
+        </div>` : '';
+      
+      // 组装：线路 → 选集 → 标签/详情
+      body.innerHTML = `
+        ${parserSectionHtml}
+        ${episodeSectionHtml}
+        ${(metaHtml || rowsHtml || rowsHtml2 || actorHtml || descHtml) ? `
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border-color);">
+            ${metaHtml ? `<div class="detail-meta">${metaHtml}</div>` : ''}
+            ${rowsHtml}
+            ${rowsHtml2}
+            ${actorHtml}
+            ${descHtml}
+          </div>` : ''}
+      `;
+    }
+
+    // 生成播放源标签
+    function buildSourceTabs(video) {
+      const sources = (video.vod_play_from || '').split('$$$').filter(s => s);
+      const sourceNames = {
+        'qq': '腾讯视频', 'youku': '优酷', 'qiyi': '爱奇艺',
+        'mgtv': '芒果TV', 'letv': '乐视', 'sohu': '搜狐',
+        'bilibili': 'B站', 'tudou': '土豆', 'pptv': 'PPTV'
+      };
+      return sources.map((s, i) => 
+        `<button class="source-tab ${i === 0 ? 'active' : ''}" onclick="selectSource(${i})">${sourceNames[s] || s}</button>`
+      ).join('');
+    }
+
+    // 展开/收起简介
+    function toggleDesc(btn) {
+      const text = btn.previousElementSibling;
+      const isCollapsed = text.classList.contains('collapsed');
+      if (isCollapsed) {
+        text.classList.remove('collapsed');
+        btn.textContent = '收起';
+      } else {
+        text.classList.add('collapsed');
+        btn.textContent = '展开';
+      }
+    }
+
+    // 展开/收起主演
+    function toggleActor(btn) {
+      const text = btn.previousElementSibling;
+      const isCollapsed = text.classList.contains('collapsed');
+      if (isCollapsed) {
+        text.classList.remove('collapsed');
+        btn.textContent = '收起';
+      } else {
+        text.classList.add('collapsed');
+        btn.textContent = '展开';
+      }
+    }
+
+    // 当前选中的源索引
+    let currentSource = 0;
+    
+    // 切换解析线路
+    function switchParser(index) {
+      currentParser = index;
+      
+      // 更新线路按钮样式
+      const tabs = document.getElementById('parserTabs').querySelectorAll('button');
+      tabs.forEach((tab, i) => {
+        tab.classList.toggle('active', i === index);
+      });
+      
+      // 如果已有选中的剧集URL，重新加载
+      const activeEpisode = document.querySelector('.episode-item.playing');
+      if (activeEpisode) {
+        const url = decodeURIComponent(activeEpisode.dataset.url);
+        loadPlayer(url);
+      }
+    }
+
+    // 解析剧集列表
+    function parseEpisodes(urlStr) {
+      if (!urlStr) return [];
+      
+      return urlStr.split('#').map(item => {
+        const parts = item.split('$');
+        return {
+          name: parts[0] || '未知',
+          url: parts[1] || ''
+        };
+      }).filter(ep => ep.url);
+    }
+
+    // 选择源
+    function selectSource(index) {
+      currentSource = index;
+      const video = state.currentVideo;
+      const urls = (video.vod_play_url || '').split('$$$');
+      const episodes = parseEpisodes(urls[index] || '');
+      
+      document.querySelectorAll('.source-tab').forEach((tab, i) => {
+        tab.classList.toggle('active', i === index);
+      });
+      
+      const episodesHtml = episodes.map((ep, i) => 
+        `<div class="episode-item" data-url="${encodeURIComponent(ep.url)}" data-name="${ep.name}" onclick="playEpisode(this)">${ep.name}</div>`
+      ).join('');
+      document.getElementById('episodeList').innerHTML = episodesHtml;
+      document.getElementById('episodeSection').style.display = episodes.length ? '' : 'none';
+    }
+
+    // 播放剧集
+    function playEpisode(el) {
+      const url = decodeURIComponent(el.dataset.url);
+      if (!url) return;
+      
+      // 标记选中的剧集
+      document.querySelectorAll('.episode-item').forEach(item => {
+        item.classList.remove('playing');
+      });
+      el.classList.add('playing');
+      
+      loadPlayer(url);
+    }
+    
+    // 加载播放器
+    function loadPlayer(url) {
+      const parser = PARSERS[currentParser];
+      const playUrl = parser.url + encodeURIComponent(url);
+      
+      const iframe = document.getElementById('videoIframe');
+      const placeholder = document.getElementById('playerPlaceholder');
+      
+      iframe.src = playUrl;
+      iframe.style.display = '';
+      placeholder.style.display = 'none';
+    }
+
+    // 关闭播放器
+    function closePlayer() {
+      document.getElementById('playerModal').classList.remove('active');
+      document.getElementById('videoIframe').src = '';
+      document.getElementById('videoIframe').style.display = 'none';
+      document.getElementById('playerPlaceholder').style.display = '';
+      document.body.style.overflow = '';
+    }
+
+    // 分页
+    function prevPage() {
+      if (state.page > 1) {
+        state.page--;
+        renderVideos();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+
+    function nextPage() {
+      const totalPages = Math.ceil(state.videos.length / state.itemsPerPage);
+      if (state.page < totalPages) {
+        state.page++;
+        renderVideos();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+
+    function updatePageInfo() {
+      const totalPages = Math.ceil(state.videos.length / state.itemsPerPage);
+      document.getElementById('pageInfo').textContent = `第 ${state.page}/${totalPages} 页`;
+      document.getElementById('prevPage').disabled = state.page <= 1;
+      document.getElementById('nextPage').disabled = state.page >= totalPages;
+    }
+
+    // 显示加载
+    function showLoading(show) {
+      document.getElementById('loading').style.display = show ? 'flex' : 'none';
+    }
+
+    // 显示错误
+    function showError() {
+      const grid = document.getElementById('videoGrid');
+      grid.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><p>加载失败，请稍后重试</p></div>';
+    }
+
+    // API 请求
+    async function fetchAPI(url) {
+      // Cloudflare Pages Functions 代理（/api 对应 functions/api.js）
+      const proxyUrl = `/api?url=${encodeURIComponent(url)}`;
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      
+      try {
+        const response = await fetch(proxyUrl, { signal: controller.signal });
+        if (!response.ok) throw new Error('Network response was not ok');
+        return response.json();
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    }
+
+    // ESC 关闭弹窗
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closePlayer();
+    });
+  </script>
+</body>
+</html>
