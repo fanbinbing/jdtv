@@ -1152,7 +1152,7 @@
 
     // API 请求
     async function fetchAPI(url) {
-      // Cloudflare Pages Functions 代理（/api 对应 functions/api.js）
+      // Cloudflare Pages Functions 代理
       const proxyUrl = `/api?url=${encodeURIComponent(url)}`;
       
       const controller = new AbortController();
