@@ -1,0 +1,13 @@
+{
+  "name": "jiandan-tv",
+  "version": "1.0.0",
+  "description": "简单TV - 视频搜索聚合平台",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": ["video", "streaming", "search"],
+  "author": "",
+  "license": "MIT"
+}
